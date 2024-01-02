@@ -11,6 +11,7 @@ import (
 
 type APIServer struct {
 	listenAddr string
+	store      Storage
 }
 
 type apiFunc func(w http.ResponseWriter, r *http.Request) error
@@ -19,23 +20,10 @@ type ApiError struct {
 	Error string
 }
 
-func NewApiServer(listenAddr string) *APIServer {
+func NewApiServer(listenAddr string, store Storage) *APIServer {
 	return &APIServer{
 		listenAddr: listenAddr,
-	}
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) error {
-	w.WriteHeader(status)
-	w.Header().Set("Content-Type", "application/json")
-	return json.NewEncoder(w).Encode(v)
-}
-
-func makeHttpHandleFunc(f apiFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		if err := f(w, r); err != nil {
-			writeJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
-		}
+		store:      store,
 	}
 }
 
@@ -71,7 +59,20 @@ func (s *APIServer) handleGetAccount(w http.ResponseWriter, r *http.Request) err
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
-	return nil
+	createAccountReq := &CreateAccountRequest{}
+	if err := json.NewDecoder(r.Body).Decode(createAccountReq); err != nil {
+		return err
+	}
+
+	account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+
+	res, err := s.store.CreateAccount(account)
+
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, res)
 }
 
 func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) error {
@@ -80,4 +81,18 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 
 func (s *APIServer) handleTransferAccount(w http.ResponseWriter, r *http.Request) error {
 	return nil
+}
+
+func writeJSON(w http.ResponseWriter, status int, v any) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	return json.NewEncoder(w).Encode(v)
+}
+
+func makeHttpHandleFunc(f apiFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if err := f(w, r); err != nil {
+			writeJSON(w, http.StatusBadRequest, ApiError{Error: err.Error()})
+		}
+	}
 }
