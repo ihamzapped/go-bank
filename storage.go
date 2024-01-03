@@ -7,10 +7,10 @@ import (
 )
 
 type Storage interface {
-	CreateAccount(*Account) (Account, error)
+	CreateAccount(*Account) (*Account, error)
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
-	GetAccount(int) (*Account, error)
+	GetAccountByID(int) (*Account, error)
 }
 
 type PostgresStore struct {
@@ -53,9 +53,7 @@ func (s *PostgresStore) CreateAccountTable() error {
 	return err
 }
 
-func (s *PostgresStore) CreateAccount(acc *Account) (Account, error) {
-	// fmt.Printf("Person: %+v\n", acc)
-
+func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 	q := `
 		INSERT INTO account (first_name, last_name, balance)
 		VALUES ($1, $2, $3)
@@ -63,17 +61,41 @@ func (s *PostgresStore) CreateAccount(acc *Account) (Account, error) {
 	`
 
 	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.Balance)
+	account, err := scanToAccount(res)
 
-	var a Account
-
-	// Scan the query results into the fields of the custom type
-	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.Balance, &a.CreatedAt)
 	if err != nil {
-		return Account{}, err
+		return &Account{}, err
 	}
 
-	return a, nil
+	return account, nil
 }
-func (s *PostgresStore) DeleteAccount(int) error          { return nil }
-func (s *PostgresStore) UpdateAccount(*Account) error     { return nil }
-func (s *PostgresStore) GetAccount(int) (*Account, error) { return nil, nil }
+
+func (s *PostgresStore) DeleteAccount(id int) error {
+	q := `DELETE FROM account WHERE id = $1;`
+	_, err := s.db.Exec(q, id)
+
+	return err
+}
+
+func (s *PostgresStore) UpdateAccount(*Account) error { return nil }
+
+func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
+
+	q := `SELECT * FROM account WHERE id = $1;`
+	res := s.db.QueryRow(q, id)
+	account, err := scanToAccount(res)
+
+	if err != nil {
+		return &Account{}, err
+	}
+
+	return account, nil
+
+}
+
+func scanToAccount(row *sql.Row) (*Account, error) {
+	a := &Account{}
+	err := row.Scan(&a.ID, &a.FirstName, &a.LastName, &a.Balance, &a.CreatedAt)
+	return a, err
+
+}
