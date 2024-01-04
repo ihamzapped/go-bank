@@ -3,13 +3,12 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/golang-jwt/jwt/v5"
+	"github.com/gorilla/mux"
 	"log"
 	"net/http"
 	"strconv"
 	"time"
-
-	"github.com/golang-jwt/jwt/v5"
-	"github.com/gorilla/mux"
 )
 
 const jwtSecret = "for_demo_purposes"
@@ -35,7 +34,8 @@ func NewApiServer(listenAddr string, store Storage) *APIServer {
 func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
-	router.HandleFunc("/account", makeHttpHandleFunc(s.handleCreateAccount))
+	router.HandleFunc("/login", makeHttpHandleFunc(s.handleLogin))
+	router.HandleFunc("/register", makeHttpHandleFunc(s.handleCreateAccount))
 	router.HandleFunc("/account/{id}", UseJWT(makeHttpHandleFunc(s.handleAccount)))
 
 	log.Printf("Api server running on http://localhost%s", s.listenAddr)
@@ -76,6 +76,31 @@ func (s *APIServer) handleGetAccountByID(w http.ResponseWriter, r *http.Request)
 	return writeJSON(w, http.StatusOK, acc)
 }
 
+func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
+	if r.Method != "POST" {
+		return s.notAllowed(r)
+	}
+
+	req := &LoginRequest{}
+	if err := json.NewDecoder(r.Body).Decode(req); err != nil {
+		return err
+	}
+
+	acc, err := s.store.GetAccountByNumber(req.AccNumber)
+
+	if err != nil {
+		return err
+	}
+
+	tokenStr, err := createJWT(acc)
+
+	if err != nil {
+		return err
+	}
+
+	return writeJSON(w, http.StatusOK, &LoginResponse{Account: acc, TokenStr: tokenStr})
+}
+
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
 	if r.Method != "POST" {
 		return s.notAllowed(r)
@@ -86,23 +111,17 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
-	account := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+	account, err := NewAccount(createAccountReq.FirstName, createAccountReq.LastName)
+
+	if err != nil {
+		return err
+	}
 
 	res, err := s.store.CreateAccount(account)
 
 	if err != nil {
 		return err
 	}
-
-	tokenStr, err := createJWT(account)
-
-	if err != nil {
-		return err
-	}
-
-	// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjo1ODAyNjI1NTEzLCJleHAiOjE3MDQ0NzE5OTAsImlhdCI6MTcwNDM4NTU5MCwiaWQiOjB9.9CZFdNr6c8k-EhhyDUgj7-o0LHR-LLMOxSDNzlazmUY
-
-	fmt.Println("Jwt token: ", tokenStr)
 
 	return writeJSON(w, http.StatusOK, res)
 }

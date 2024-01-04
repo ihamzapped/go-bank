@@ -11,6 +11,7 @@ type Storage interface {
 	DeleteAccount(int) error
 	UpdateAccount(*Account) error
 	GetAccountByID(int) (*Account, error)
+	GetAccountByNumber(uint64) (*Account, error)
 }
 
 type PostgresStore struct {
@@ -43,10 +44,11 @@ func NewPostgresStore() (*PostgresStore, error) {
 func (s *PostgresStore) CreateAccountTable() error {
 	q := `CREATE TABLE IF NOT EXISTS account (
     id BIGSERIAL PRIMARY KEY,
-    first_name VARCHAR(250),
-    last_name VARCHAR(250),
+    first_name VARCHAR(250) NOT NULL,
+    last_name VARCHAR(250) NOT NULL,
+    password_hash BYTEA NOT NULL,
     balance BIGINT,
-    acc_number BIGINT,
+    acc_number BIGINT NOT NULL,
 	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 );`
 
@@ -56,12 +58,12 @@ func (s *PostgresStore) CreateAccountTable() error {
 
 func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 	q := `
-		INSERT INTO account (first_name, last_name, acc_number, balance)
-		VALUES ($1, $2, $3, $4)
+		INSERT INTO account (first_name, last_name, password_hash, acc_number, balance)
+		VALUES ($1, $2, $3, $4, $5)
 		RETURNING id, first_name, last_name, acc_number, balance, created_at
 	`
 
-	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.AccNumber, acc.Balance)
+	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.PasswordHash, acc.AccNumber, acc.Balance)
 	account, err := scanToAccount(res)
 
 	if err != nil {
@@ -82,8 +84,28 @@ func (s *PostgresStore) UpdateAccount(*Account) error { return nil }
 
 func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 
-	q := `SELECT * FROM account WHERE id = $1;`
+	q := `
+		SELECT id, first_name, last_name, balance, acc_number, created_at
+		FROM account WHERE id = $1;
+	`
 	res := s.db.QueryRow(q, id)
+	account, err := scanToAccount(res)
+
+	if err != nil {
+		return &Account{}, err
+	}
+
+	return account, nil
+
+}
+
+func (s *PostgresStore) GetAccountByNumber(acc uint64) (*Account, error) {
+
+	q := `
+		SELECT id, first_name, last_name, balance, acc_number, created_at
+		FROM account WHERE acc_number = $1;
+	`
+	res := s.db.QueryRow(q, acc)
 	account, err := scanToAccount(res)
 
 	if err != nil {
