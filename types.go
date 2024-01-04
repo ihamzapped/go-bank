@@ -20,11 +20,6 @@ type LoginRequest struct {
 	Password  string `json:"password"`
 }
 
-type LoginResponse struct {
-	Account  *Account `json:"account"`
-	TokenStr string   `json:"token"`
-}
-
 type CreateAccountRequest struct {
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`

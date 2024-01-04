@@ -63,14 +63,15 @@ func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 		RETURNING id, first_name, last_name, acc_number, balance, created_at
 	`
 
+	a := &Account{}
 	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.PasswordHash, acc.AccNumber, acc.Balance)
-	account, err := scanToAccount(res)
+	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.AccNumber, &a.Balance, &a.CreatedAt)
 
 	if err != nil {
 		return &Account{}, err
 	}
 
-	return account, nil
+	return a, nil
 }
 
 func (s *PostgresStore) DeleteAccount(id int) error {
@@ -88,37 +89,31 @@ func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 		SELECT id, first_name, last_name, balance, acc_number, created_at
 		FROM account WHERE id = $1;
 	`
+	a := &Account{}
 	res := s.db.QueryRow(q, id)
-	account, err := scanToAccount(res)
+	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.AccNumber, &a.Balance, &a.CreatedAt)
 
 	if err != nil {
 		return &Account{}, err
 	}
 
-	return account, nil
+	return a, nil
 
 }
 
 func (s *PostgresStore) GetAccountByNumber(acc uint64) (*Account, error) {
 
 	q := `
-		SELECT id, first_name, last_name, balance, acc_number, created_at
-		FROM account WHERE acc_number = $1;
+		SELECT * FROM account WHERE acc_number = $1;
 	`
+	a := &Account{}
 	res := s.db.QueryRow(q, acc)
-	account, err := scanToAccount(res)
+	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.PasswordHash, &a.AccNumber, &a.Balance, &a.CreatedAt)
 
 	if err != nil {
 		return &Account{}, err
 	}
 
-	return account, nil
-
-}
-
-func scanToAccount(row *sql.Row) (*Account, error) {
-	a := &Account{}
-	err := row.Scan(&a.ID, &a.FirstName, &a.LastName, &a.AccNumber, &a.Balance, &a.CreatedAt)
-	return a, err
+	return a, nil
 
 }

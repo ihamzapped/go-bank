@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
+	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
 	"strconv"
@@ -92,13 +93,22 @@ func (s *APIServer) handleLogin(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
+	err = bcrypt.CompareHashAndPassword([]byte(acc.PasswordHash), []byte(req.Password))
+
+	if err != nil {
+		return err
+	}
+
 	tokenStr, err := createJWT(acc)
 
 	if err != nil {
 		return err
 	}
 
-	return writeJSON(w, http.StatusOK, &LoginResponse{Account: acc, TokenStr: tokenStr})
+	return writeJSON(w, http.StatusOK, map[string]interface{}{
+		"account": *acc,
+		"token":   tokenStr,
+	})
 }
 
 func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) error {
