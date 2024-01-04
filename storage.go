@@ -46,6 +46,7 @@ func (s *PostgresStore) CreateAccountTable() error {
     first_name VARCHAR(250),
     last_name VARCHAR(250),
     balance BIGINT,
+    acc_number BIGINT,
 	created_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')
 );`
 
@@ -55,12 +56,12 @@ func (s *PostgresStore) CreateAccountTable() error {
 
 func (s *PostgresStore) CreateAccount(acc *Account) (*Account, error) {
 	q := `
-		INSERT INTO account (first_name, last_name, balance)
-		VALUES ($1, $2, $3)
-		RETURNING id, first_name, last_name, balance, created_at
+		INSERT INTO account (first_name, last_name, acc_number, balance)
+		VALUES ($1, $2, $3, $4)
+		RETURNING id, first_name, last_name, acc_number, balance, created_at
 	`
 
-	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.Balance)
+	res := s.db.QueryRow(q, acc.FirstName, acc.LastName, acc.AccNumber, acc.Balance)
 	account, err := scanToAccount(res)
 
 	if err != nil {
@@ -95,7 +96,7 @@ func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 
 func scanToAccount(row *sql.Row) (*Account, error) {
 	a := &Account{}
-	err := row.Scan(&a.ID, &a.FirstName, &a.LastName, &a.Balance, &a.CreatedAt)
+	err := row.Scan(&a.ID, &a.FirstName, &a.LastName, &a.AccNumber, &a.Balance, &a.CreatedAt)
 	return a, err
 
 }

@@ -6,9 +6,13 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/mux"
 )
+
+const jwtSecret = "for_demo_purposes"
 
 type APIServer struct {
 	listenAddr string
@@ -32,9 +36,9 @@ func (s *APIServer) Run() {
 	router := mux.NewRouter()
 
 	router.HandleFunc("/account", makeHttpHandleFunc(s.handleCreateAccount))
-	router.HandleFunc("/account/{id}", makeHttpHandleFunc(s.handleAccount))
+	router.HandleFunc("/account/{id}", UseJWT(makeHttpHandleFunc(s.handleAccount)))
 
-	log.Printf("\nApi server running on http://localhost%s", s.listenAddr)
+	log.Printf("Api server running on http://localhost%s", s.listenAddr)
 
 	http.ListenAndServe(s.listenAddr, router)
 
@@ -90,6 +94,16 @@ func (s *APIServer) handleCreateAccount(w http.ResponseWriter, r *http.Request) 
 		return err
 	}
 
+	tokenStr, err := createJWT(account)
+
+	if err != nil {
+		return err
+	}
+
+	// eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2NvdW50TnVtYmVyIjo1ODAyNjI1NTEzLCJleHAiOjE3MDQ0NzE5OTAsImlhdCI6MTcwNDM4NTU5MCwiaWQiOjB9.9CZFdNr6c8k-EhhyDUgj7-o0LHR-LLMOxSDNzlazmUY
+
+	fmt.Println("Jwt token: ", tokenStr)
+
 	return writeJSON(w, http.StatusOK, res)
 }
 
@@ -106,6 +120,46 @@ func (s *APIServer) handleDeleteAccount(w http.ResponseWriter, r *http.Request) 
 
 func (s *APIServer) handleTransferAccount(w http.ResponseWriter, r *http.Request) error {
 	return nil
+}
+
+func UseJWT(f http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		tokenStr := r.Header.Get("x-jwt-token")
+		token, err := validateJWT(tokenStr)
+
+		if err != nil || !token.Valid {
+			// log.Println(err)
+			writeJSON(w, http.StatusForbidden, ApiError{Error: "Invalid Token"})
+			return
+		}
+
+		f(w, r)
+	}
+}
+
+func createJWT(acc *Account) (string, error) {
+	claims := &jwt.MapClaims{
+		"id":            acc.ID,
+		"accountNumber": acc.AccNumber,
+		"iat":           time.Now().Unix(),
+		"exp":           time.Now().Add(time.Hour * 24).Unix(), // 24 hour expiration
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(jwtSecret))
+}
+
+func validateJWT(tokenStr string) (*jwt.Token, error) {
+	hmacSampleSecret := []byte(jwtSecret)
+	return jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+		// Don't forget to validate the alg is what you expect:
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("Unexpected signing method: %v", token.Header["alg"])
+		}
+
+		// hmacSampleSecret is a []byte containing your secret, e.g. []byte("my_secret_key")
+		return hmacSampleSecret, nil
+	})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) error {

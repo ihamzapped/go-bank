@@ -9,6 +9,7 @@ type Account struct {
 	FirstName string    `json:"firstName"`
 	LastName  string    `json:"lastName"`
 	Balance   uint64    `json:"balance"`
+	AccNumber uint64    `json:"accNumber"`
 	CreatedAt time.Time `json:"createdAt"`
 }
 
@@ -22,5 +23,7 @@ func NewAccount(fname, lname string) *Account {
 	return &Account{
 		FirstName: fname,
 		LastName:  lname,
+		Balance:   10000,
+		AccNumber: GenRandNum(),
 	}
 }
