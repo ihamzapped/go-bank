@@ -20,6 +20,11 @@ type LoginRequest struct {
 	Password  string `json:"password"`
 }
 
+type TransferRequest struct {
+	Amount    uint64 `json:"amount"`
+	Recipient uint64 `json:"recipient"`
+}
+
 type CreateAccountRequest struct {
 	FirstName string `json:"firstName"`
 	LastName  string `json:"lastName"`

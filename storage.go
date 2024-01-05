@@ -9,7 +9,7 @@ import (
 type Storage interface {
 	CreateAccount(*Account) (*Account, error)
 	DeleteAccount(int) error
-	UpdateAccount(*Account) error
+	UpdateAccountBal(int, uint64) error
 	GetAccountByID(int) (*Account, error)
 	GetAccountByNumber(uint64) (*Account, error)
 }
@@ -81,7 +81,19 @@ func (s *PostgresStore) DeleteAccount(id int) error {
 	return err
 }
 
-func (s *PostgresStore) UpdateAccount(*Account) error { return nil }
+func (s *PostgresStore) UpdateAccountBal(id int, bal uint64) error {
+	q := `
+		UPDATE account
+		SET balance = $2
+		WHERE id = $1;
+	`
+	_, err := s.db.Exec(q, id, bal)
+
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 
@@ -91,7 +103,7 @@ func (s *PostgresStore) GetAccountByID(id int) (*Account, error) {
 	`
 	a := &Account{}
 	res := s.db.QueryRow(q, id)
-	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.AccNumber, &a.Balance, &a.CreatedAt)
+	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.Balance, &a.AccNumber, &a.CreatedAt)
 
 	if err != nil {
 		return &Account{}, err
@@ -108,7 +120,7 @@ func (s *PostgresStore) GetAccountByNumber(acc uint64) (*Account, error) {
 	`
 	a := &Account{}
 	res := s.db.QueryRow(q, acc)
-	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.PasswordHash, &a.AccNumber, &a.Balance, &a.CreatedAt)
+	err := res.Scan(&a.ID, &a.FirstName, &a.LastName, &a.PasswordHash, &a.Balance, &a.AccNumber, &a.CreatedAt)
 
 	if err != nil {
 		return &Account{}, err
