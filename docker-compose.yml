@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  go-bank:
+    depends_on:
+     - go-bank-db
+    build:
+      context: .
+    container_name: go-bank
+    hostname: go-bank
+    networks:
+      - bank-network
+    ports:
+      - 8000:8000
+    environment:
+      - PGUSER=${PGUSER:-postgres}
+      - PGPASSWORD=${PGPASSWORD:?database password not set}
+      - PGHOST=${PGHOST:-db}
+      - PGPORT=${PGPORT:-5432}
+      - PGDATABASE=${PGDATABASE:-bank-db}
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  go-bank-db:
+    image: postgres:latest
+    container_name: go-bank-db
+    hostname: db
+    networks:
+      - bank-network
+    environment:
+      - POSTGRES_DB=${PGDATABASE:-bank-db} 
+      - POSTGRES_USER=${PGUSER:-postgres} 
+      - POSTGRES_PASSWORD=${PGPASSWORD:?database password not set} 
+    volumes:
+      - go-bank-db:/var/lib/postgresql/data
+
+volumes:
+  go-bank-db:
+
+networks:
+  bank-network:
+    driver: bridge

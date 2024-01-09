@@ -10,11 +10,11 @@ func main() {
 	store, err := NewPostgresStore()
 
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to connect db:\n", err)
 	}
 
 	if err := store.InitDB(); err != nil {
-		log.Fatal(err)
+		log.Fatal("Failed to init db:\n", err)
 	}
 
 	app := NewApiServer(":8000", store)

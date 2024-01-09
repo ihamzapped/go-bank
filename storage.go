@@ -2,6 +2,9 @@ package main
 
 import (
 	"database/sql"
+	"fmt"
+	"os"
+
 	// "fmt"
 	_ "github.com/lib/pq"
 )
@@ -23,7 +26,13 @@ func (s *PostgresStore) InitDB() error {
 }
 
 func NewPostgresStore() (*PostgresStore, error) {
-	dsn := "user=admin password=password@331 dbname=fiber host=localhost port=5432 sslmode=disable"
+	dsn := fmt.Sprintf("host=%s port=%s dbname=%s user=%s password=%s sslmode=disable",
+		os.Getenv("PGHOST"),
+		os.Getenv("PGPORT"),
+		os.Getenv("PGDATABASE"),
+		os.Getenv("PGUSER"),
+		os.Getenv("PGPASSWORD"),
+	)
 
 	db, err := sql.Open("postgres", dsn)
 

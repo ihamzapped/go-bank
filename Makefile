@@ -1,8 +1,8 @@
 build: 
-	@go build -o bin/bank
+	docker-compose build
 
-run: build
-	@./bin/bank
 
-test:
-	@go test -v ./...
+run:
+	docker-compose up
+
+brun: build run
